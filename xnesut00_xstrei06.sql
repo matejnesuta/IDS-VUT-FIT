@@ -10,6 +10,8 @@ DROP TABLE Bachelor_studies CASCADE CONSTRAINTS;
 DROP TABLE Bachelor_student CASCADE CONSTRAINTS;
 DROP TABLE Post_grad_studies CASCADE CONSTRAINTS;
 DROP TABLE Post_grad_student CASCADE CONSTRAINTS;
+DROP TABLE Driving_courses CASCADE CONSTRAINTS;
+DROP TABLE Driv_cours_student CASCADE CONSTRAINTS;
 
 
 CREATE TABLE Person (
@@ -43,8 +45,8 @@ CREATE TABLE Bureau_type (
     B_type VARCHAR(30) NOT NULL UNIQUE
 );
 
-INSERT INTO Bureau_type
-VALUES (DEFAULT, 'Mestsky urad');
+INSERT INTO Bureau_type (B_type)
+VALUES ('Mestsky urad');
 INSERT INTO Bureau_type
 VALUES (DEFAULT, 'Krajsky urad');
 
@@ -173,7 +175,7 @@ VALUES(16, 'Informacni technologie', 'KUPh');
 CREATE TABLE Post_grad_studies (
     Field_ID NUMBER(10) PRIMARY KEY,
     Name_ VARCHAR(50) NOT NULL,
-    Type_ VARCHAR(25) CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates')),
+    Type_ VARCHAR(25) NOT NULL CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates')),
     S_bureau VARCHAR(10),
     CONSTRAINT P_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut)
 );
@@ -182,6 +184,19 @@ INSERT INTO Post_grad_studies
 VALUES(102, 'Umela inteligence', 'Postgraduate diplomas', 'KUPh');
 INSERT INTO Post_grad_studies
 VALUES(103, 'Kyberbezpecnost', 'Postgraduate diplomas', 'MUBl');
+
+CREATE TABLE Driving_courses(
+    Driving_course_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('A','B','BE','CE','D', 'DE', 'T', 'Others')),
+    course_description VARCHAR(500) NULL,
+    S_bureau VARCHAR(10),
+    CONSTRAINT Driving_course_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut)
+);
+
+INSERT INTO Driving_courses
+VALUES(DEFAULT,'T', 'Autoskola specializovana na traktory a vozidla na stavbe.', 'MUBl');
+INSERT INTO Driving_courses
+VALUES(DEFAULT,'Others', 'Letecka skola.', 'MUBl');
 
 CREATE TABLE Bachelor_student (
     Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -212,3 +227,17 @@ CREATE TABLE Post_grad_student (
 
 INSERT INTO Post_grad_student
 VALUES(DEFAULT, '23-SEP-2020', NULL, NULL, 103, '0106122467');
+
+CREATE TABLE Driv_cours_student (
+    Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Date_from DATE DEFAULT SYSDATE,
+    Date_to DATE DEFAULT SYSDATE,
+    Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')),
+    S_studies NUMBER(10),
+    S_person VARCHAR(10),
+    CONSTRAINT Studies3 FOREIGN KEY (S_studies) REFERENCES Driving_courses (Driving_course_ID),
+    CONSTRAINT Student3 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
+);
+
+INSERT INTO Driv_cours_student
+VALUES(DEFAULT,'23-SEP-2020', NULL, NULL, 1, '0106122467');
