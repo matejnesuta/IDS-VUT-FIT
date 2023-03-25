@@ -11,38 +11,18 @@ DROP TABLE Bachelor_student CASCADE CONSTRAINTS;
 DROP TABLE Post_grad_studies CASCADE CONSTRAINTS;
 DROP TABLE Post_grad_student CASCADE CONSTRAINTS;
 
---create FUNCTION valid_birth_number(birth_number IN varchar(10), sex IN varchar(1) )   
--- RETURN number  
--- IS  
---     valid number;  
--- BEGIN  
---    IF REGEXP_LIKE(birth_number, '^[[:digit:]]{10}$')  THEN {
-    
---       z:= x;  
---    } 
---    ELSIF REGEXP_LIKE(birth_number, '^[[:digit:]]{9}$')  THEN  {
-
---    }
---    ELSE  
---       z:= 0;  
---    END IF;  
-  
---    RETURN z;  
--- END;   
--- BEGIN  
-
 
 CREATE TABLE Person (
     Birth_number VARCHAR(11) PRIMARY KEY,
     Name_ VARCHAR(30) NOT NULL,
     Surname VARCHAR(30) NOT NULL,
     Sex VARCHAR(1) CHECK (Sex IN ('M', 'F')),
-    Noble_title VARCHAR(30)
-    CHECK ((LENGTH(Birth_number) = 11) AND ISDATE())
+    Noble_title VARCHAR(30),
+    CHECK (LENGTH(Birth_number) = 10 AND mod(to_number(Birth_number),11)=0)
 );
 
 INSERT INTO Person
-VALUES ('020307/1234', 'Jaroslav', 'Streit', 'M', null);
+VALUES ('0202255834', 'Jaroslav', 'Streit', 'M', null);
 
 CREATE TABLE Appointment (
     App_ID NUMBER(10) GENERATED AS IDENTITY (START WITH 1111 INCREMENT BY 1) PRIMARY KEY,
