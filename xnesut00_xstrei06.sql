@@ -15,20 +15,20 @@ DROP TABLE Driv_cours_student CASCADE CONSTRAINTS;
 
 
 CREATE TABLE Person (
-    Birth_number VARCHAR(10) PRIMARY KEY,
+    Birth_number INTEGER PRIMARY KEY,
     Name_ VARCHAR(30) NOT NULL,
     Surname VARCHAR(30) NOT NULL,
     Sex VARCHAR(1) CHECK (Sex IN ('M', 'F')),
     Noble_title VARCHAR(30),
-    CHECK (LENGTH(Birth_number) = 10 AND mod(to_number(Birth_number),11)=0)
+    CHECK  (Birth_number >= 100000000 AND mod(Birth_number,11)=0)
 );
 
 INSERT INTO Person
-VALUES ('0203071231', 'Jaroslav', 'Streit', 'M', null);
+VALUES (0203071231, 'Jaroslav', 'Streit', 'M', null);
 INSERT INTO Person
-VALUES ('0106122467', 'Matěj', 'Nesuta', 'M', 'Rytíř');
+VALUES (0106122467, 'Matěj', 'Nesuta', 'M', 'Rytíř');
 INSERT INTO Person
-VALUES ('9755165673', 'Lenka', 'Zouharová', 'F', 'Hraběnka');
+VALUES (9755165673, 'Lenka', 'Zouharová', 'F', 'Hraběnka');
 
 CREATE TABLE Appointment (
     App_ID NUMBER(10) GENERATED AS IDENTITY (START WITH 1111 INCREMENT BY 1) PRIMARY KEY,
@@ -57,7 +57,7 @@ CREATE TABLE Bureau (
     CONSTRAINT Bureau_ID FOREIGN KEY (B_type_ID) REFERENCES Bureau_type (Type_ID),
     Founded DATE DEFAULT SYSDATE,
     Closed DATE DEFAULT SYSDATE NULL,
-    Deed_of_foundation NUMBER(10) NOT NULL UNIQUE,
+    Deed_of_foundation INTEGER NOT NULL UNIQUE,
     Publication_date DATE DEFAULT SYSDATE,
     City VARCHAR(50) NOT NULL,
     Street VARCHAR(50) NOT NULL,
@@ -68,7 +68,8 @@ CREATE TABLE Bureau (
     Superior_shortcut VARCHAR(10) NULL,
     CONSTRAINT Superior_b FOREIGN KEY (Superior_shortcut) REFERENCES Bureau(Shortcut),
     CONSTRAINT superior_shortcut_shortcut CHECK (Superior_shortcut <> Shortcut),
-    CHECK (Founded < Closed)
+    CHECK (Founded < Closed),
+    CHECK (Deed_of_foundation > 0)
 );
 
 INSERT INTO Bureau
@@ -84,8 +85,8 @@ VALUES('KUPh', 'Krajsky urad Praha', 1112, '01-JAN-1993', NULL, 12347,
 CREATE TABLE Function (
     Function_ID NUMBER(10) GENERATED AS IDENTITY (START WITH 1111 INCREMENT BY 1),
     Function_name VARCHAR(50)  NOT NULL,
-    Function_code NUMBER(10) NOT NULL,
-    App_ID NUMBER(10),
+    Function_code INTEGER NOT NULL,
+    App_ID NUMBER (10),
     Function_length INTERVAL YEAR(4) TO MONTH DEFAULT INTERVAL '0000-00' YEAR TO MONTH,
     Superior_ID NUMBER(10) NULL,
     Establishment_date DATE DEFAULT SYSDATE,
@@ -95,7 +96,8 @@ CREATE TABLE Function (
     CONSTRAINT Superior_f FOREIGN KEY (Superior_ID) REFERENCES Function(Function_ID),
     CONSTRAINT Function_ID UNIQUE (Function_ID),
     CONSTRAINT Bureau FOREIGN KEY (F_bureau) REFERENCES Bureau(Shortcut),
-    CONSTRAINT func_in_bur UNIQUE (Function_code, F_bureau)
+    CONSTRAINT func_in_bur UNIQUE (Function_code, F_bureau),
+    CHECK (Function_code > 0)
 );
 
 INSERT INTO Function
@@ -112,7 +114,7 @@ CREATE TABLE Person_function (
     Date_to DATE DEFAULT SYSDATE,
     Employee_order NUMBER(5) NOT NULL,
     End_reason VARCHAR(150),
-    Birth_number VARCHAR(10),
+    Birth_number INTEGER,
     CONSTRAINT VALID_INTERVAL CHECK (Date_to > Date_from),
     CONSTRAINT Person_ID FOREIGN KEY (Birth_number) REFERENCES Person (Birth_number),
     CONSTRAINT Func_ID FOREIGN KEY (Function_ID) REFERENCES Function (Function_ID)
@@ -128,8 +130,8 @@ VALUES(DEFAULT, 1113, '21-JUN-2016', NULL, 2, NULL, '0106122467');
 
 CREATE TABLE Relationship (
     relationship_id NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    Person_1 VARCHAR(10) NOT NULL,
-    Person_2 VARCHAR(10) NOT NULL,
+    Person_1 INTEGER NOT NULL,
+    Person_2 INTEGER NOT NULL,
     rel_type VARCHAR(20) CHECK (rel_type IN ('Family member', 'School', 'Work', 'Other')),
     rel_description VARCHAR(1000),
     CONSTRAINT Person_ID1 FOREIGN KEY (Person_1) REFERENCES Person (Birth_number),
@@ -142,15 +144,16 @@ INSERT INTO Relationship
 VALUES(DEFAULT, '0203071231', '9755165673', 'Family member', 'Sestra');
 
 CREATE TABLE Decree (
-    Decree_ID NUMBER(10) PRIMARY KEY,
+    Decree_ID INTEGER PRIMARY KEY,
     Date_of_decision DATE DEFAULT SYSDATE,
     Date_of_execution DATE DEFAULT SYSDATE,
     Decree VARCHAR(200) NOT NULL,
     Reasoning VARCHAR(1000) NOT NULL,
-    Person_ID VARCHAR(10),
+    Person_ID INTEGER,
     Bureau_shortcut VARCHAR(10),
     CONSTRAINT D_person FOREIGN KEY (Person_ID) REFERENCES Person (Birth_number),
-    CONSTRAINT D_bureau FOREIGN KEY (Bureau_shortcut) REFERENCES Bureau (Shortcut)
+    CONSTRAINT D_bureau FOREIGN KEY (Bureau_shortcut) REFERENCES Bureau (Shortcut),
+    CHECK (Decree_ID > 0)
 );
 
 INSERT INTO Decree
@@ -161,10 +164,11 @@ VALUES(731482, DEFAULT, DEFAULT, 'Vydani ridicskeho prukazu',
        'Ridicsky prukaz vydan na zaklade plnohodnotneho splneni autoskoly.', '0203071231', 'MUBl');
 
 CREATE TABLE Bachelor_studies (
-    Field_ID NUMBER(10) PRIMARY KEY,
+    Field_ID INTEGER PRIMARY KEY,
     Name_ VARCHAR(50) NOT NULL,
     S_bureau VARCHAR(10),
-    CONSTRAINT B_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut)
+    CONSTRAINT B_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut),
+    CHECK (Field_ID > 0)
 );
 
 INSERT INTO Bachelor_studies
@@ -173,11 +177,12 @@ INSERT INTO Bachelor_studies
 VALUES(16, 'Informacni technologie', 'KUPh');
 
 CREATE TABLE Post_grad_studies (
-    Field_ID NUMBER(10) PRIMARY KEY,
+    Field_ID INTEGER PRIMARY KEY,
     Name_ VARCHAR(50) NOT NULL,
     Type_ VARCHAR(25) NOT NULL CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates')),
     S_bureau VARCHAR(10),
-    CONSTRAINT P_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut)
+    CONSTRAINT P_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut),
+    CHECK (Field_ID > 0)
 );
 
 INSERT INTO Post_grad_studies
@@ -204,7 +209,7 @@ CREATE TABLE Bachelor_student (
     Date_to DATE DEFAULT SYSDATE NULL,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')) NULL,
     S_studies NUMBER(10),
-    S_person VARCHAR(10),
+    S_person INTEGER,
     CONSTRAINT Studies1 FOREIGN KEY (S_studies) REFERENCES  Bachelor_studies (Field_ID),
     CONSTRAINT Student1 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
 );
@@ -220,7 +225,7 @@ CREATE TABLE Post_grad_student (
     Date_to DATE DEFAULT SYSDATE,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')),
     S_studies NUMBER(10),
-    S_person VARCHAR(10),
+    S_person INTEGER,
     CONSTRAINT Studies2 FOREIGN KEY (S_studies) REFERENCES  Post_grad_studies (Field_ID),
     CONSTRAINT Student2 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
 );
@@ -234,7 +239,7 @@ CREATE TABLE Driv_cours_student (
     Date_to DATE DEFAULT SYSDATE,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')),
     S_studies NUMBER(10),
-    S_person VARCHAR(10),
+    S_person INTEGER,
     CONSTRAINT Studies3 FOREIGN KEY (S_studies) REFERENCES Driving_courses (Driving_course_ID),
     CONSTRAINT Student3 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
 );
