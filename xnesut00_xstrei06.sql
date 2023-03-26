@@ -6,13 +6,8 @@ DROP TABLE Bureau CASCADE CONSTRAINTS;
 DROP TABLE Bureau_type CASCADE CONSTRAINTS;
 DROP TABLE Relationship CASCADE CONSTRAINTS;
 DROP TABLE Decree CASCADE CONSTRAINTS;
-DROP TABLE Bachelor_studies CASCADE CONSTRAINTS;
-DROP TABLE Bachelor_student CASCADE CONSTRAINTS;
-DROP TABLE Post_grad_studies CASCADE CONSTRAINTS;
-DROP TABLE Post_grad_student CASCADE CONSTRAINTS;
-DROP TABLE Driving_courses CASCADE CONSTRAINTS;
-DROP TABLE Driv_cours_student CASCADE CONSTRAINTS;
-
+DROP TABLE Studies CASCADE CONSTRAINTS;
+DROP TABLE Studies_student CASCADE CONSTRAINTS;
 
 CREATE TABLE Person (
     Birth_number INTEGER PRIMARY KEY,
@@ -163,86 +158,63 @@ INSERT INTO Decree
 VALUES(731482, DEFAULT, DEFAULT, 'Vydani ridicskeho prukazu',
        'Ridicsky prukaz vydan na zaklade plnohodnotneho splneni autoskoly.', '0203071231', 'MUBl');
 
-CREATE TABLE Bachelor_studies (
-    Field_ID INTEGER PRIMARY KEY,
+
+-- Po feedbacku z 1. casti jsme se rozhodli komplet predelat specializaci a misto uzemnich celku ji
+-- aplikovat na entitni mnozinu studii. Ta by vypadala tak, ze by byla specializovana na 
+-- bakalarska studia, pobakalarska studia (inzenyrska, doktorska, kurzy a certifikaty) a na 
+-- kurzy ovladani motorovych vozidel. Tyto 3 specializace by mely spolecny primarni klic kodu.
+
+-- Pro skript jsme se rozhodli tuto specializaci vtesnat do jedne tabulky, jelikoz se jedna o specializaci
+-- disjunktni a totalni a toto reseni by tomu mohlo vyhovovat nejlepe.
+
+CREATE TABLE Studies(
+    Studies_ID INTEGER PRIMARY KEY,
     Name_ VARCHAR(50) NOT NULL,
     S_bureau VARCHAR(10),
+    Type_ VARCHAR(25) NOT NULL CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates','Bachelor''s', 'Driving schools')),
+    vehicle_type VARCHAR(20) NULL CHECK (vehicle_type IN ('A','B','BE','CE','D', 'DE', 'T', 'Others')),
     CONSTRAINT B_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut),
-    CHECK (Field_ID > 0)
+    CHECK (Studies_ID > 0),
+    CHECK ((Type_ like 'Driving schools' and vehicle_type is not NULL) or 
+    (Type_ not like 'Driving school' and vehicle_type is NULL))
 );
 
-INSERT INTO Bachelor_studies
-VALUES(12, 'Manazerska Informatika', 'KUPh');
-INSERT INTO Bachelor_studies
-VALUES(16, 'Informacni technologie', 'KUPh');
+-- INSERT INTO Bachelor_studies
+-- VALUES(12, 'Manazerska Informatika', 'KUPh');
+-- INSERT INTO Bachelor_studies
+-- VALUES(16, 'Informacni technologie', 'KUPh');
 
-CREATE TABLE Post_grad_studies (
-    Field_ID INTEGER PRIMARY KEY,
-    Name_ VARCHAR(50) NOT NULL,
-    Type_ VARCHAR(25) NOT NULL CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates')),
-    S_bureau VARCHAR(10),
-    CONSTRAINT P_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut),
-    CHECK (Field_ID > 0)
-);
 
-INSERT INTO Post_grad_studies
-VALUES(102, 'Umela inteligence', 'Postgraduate diplomas', 'KUPh');
-INSERT INTO Post_grad_studies
-VALUES(103, 'Kyberbezpecnost', 'Postgraduate diplomas', 'MUBl');
+-- INSERT INTO Post_grad_studies
+-- VALUES(102, 'Umela inteligence', 'Postgraduate diplomas', 'KUPh');
+-- INSERT INTO Post_grad_studies
+-- VALUES(103, 'Kyberbezpecnost', 'Postgraduate diplomas', 'MUBl');
 
-CREATE TABLE Driving_courses(
-    Driving_course_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('A','B','BE','CE','D', 'DE', 'T', 'Others')),
-    course_description VARCHAR(500) NULL,
-    S_bureau VARCHAR(10),
-    CONSTRAINT Driving_course_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut)
-);
+-- INSERT INTO Driving_courses
+-- VALUES(DEFAULT,'T', 'Autoskola specializovana na traktory a vozidla na stavbe.', 'MUBl');
+-- INSERT INTO Driving_courses
+-- VALUES(DEFAULT,'Others', 'Letecka skola.', 'MUBl');
 
-INSERT INTO Driving_courses
-VALUES(DEFAULT,'T', 'Autoskola specializovana na traktory a vozidla na stavbe.', 'MUBl');
-INSERT INTO Driving_courses
-VALUES(DEFAULT,'Others', 'Letecka skola.', 'MUBl');
-
-CREATE TABLE Bachelor_student (
+CREATE TABLE Studies_student (
     Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     Date_from DATE DEFAULT SYSDATE,
     Date_to DATE DEFAULT SYSDATE NULL,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')) NULL,
     S_studies NUMBER(10),
     S_person INTEGER,
-    CONSTRAINT Studies1 FOREIGN KEY (S_studies) REFERENCES  Bachelor_studies (Field_ID),
+    CONSTRAINT Studies1 FOREIGN KEY (S_studies) REFERENCES  Studies (Studies_ID),
     CONSTRAINT Student1 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
 );
 
-INSERT INTO Bachelor_student
-VALUES(DEFAULT, '21-SEP-2021', NULL, NULL, 16, '0203071231');
-INSERT INTO Bachelor_student
-VALUES(DEFAULT, '18-SEP-2018', '29-JUN-2022', 'YES', 12, '9755165673');
+-- INSERT INTO Bachelor_student
+-- VALUES(DEFAULT, '21-SEP-2021', NULL, NULL, 16, '0203071231');
+-- INSERT INTO Bachelor_student
+-- VALUES(DEFAULT, '18-SEP-2018', '29-JUN-2022', 'YES', 12, '9755165673');
 
-CREATE TABLE Post_grad_student (
-    Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    Date_from DATE DEFAULT SYSDATE,
-    Date_to DATE DEFAULT SYSDATE,
-    Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')),
-    S_studies NUMBER(10),
-    S_person INTEGER,
-    CONSTRAINT Studies2 FOREIGN KEY (S_studies) REFERENCES  Post_grad_studies (Field_ID),
-    CONSTRAINT Student2 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
-);
 
-INSERT INTO Post_grad_student
-VALUES(DEFAULT, '23-SEP-2020', NULL, NULL, 103, '0106122467');
+-- INSERT INTO Post_grad_student
+-- VALUES(DEFAULT, '23-SEP-2020', NULL, NULL, 103, '0106122467');
 
-CREATE TABLE Driv_cours_student (
-    Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    Date_from DATE DEFAULT SYSDATE,
-    Date_to DATE DEFAULT SYSDATE,
-    Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')),
-    S_studies NUMBER(10),
-    S_person INTEGER,
-    CONSTRAINT Studies3 FOREIGN KEY (S_studies) REFERENCES Driving_courses (Driving_course_ID),
-    CONSTRAINT Student3 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
-);
 
-INSERT INTO Driv_cours_student
-VALUES(DEFAULT,'23-SEP-2020', NULL, NULL, 1, '0106122467');
+-- INSERT INTO Driv_cours_student
+-- VALUES(DEFAULT,'23-SEP-2020', NULL, NULL, 1, '0106122467');
