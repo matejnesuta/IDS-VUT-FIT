@@ -11,7 +11,7 @@ DROP TABLE Studies_student CASCADE CONSTRAINTS;
 
 CREATE TABLE Person (
     Birth_number INTEGER PRIMARY KEY,
-    Name_ VARCHAR(30) NOT NULL,
+    Person_name VARCHAR(30) NOT NULL,
     Surname VARCHAR(30) NOT NULL,
     Sex VARCHAR(1) CHECK (Sex IN ('M', 'F')),
     Noble_title VARCHAR(30),
@@ -26,6 +26,10 @@ INSERT INTO Person
 VALUES (9755165673, 'Lenka', 'Zouharová', 'F', 'Hraběnka');
 INSERT INTO Person
 VALUES (0157068923, 'Patricie', 'Veselá', 'F', NULL);
+INSERT INTO Person
+VALUES (0157068934, 'Petra', 'Černá', 'F', 'Dáma');
+INSERT INTO Person
+VALUES (9755165662, 'Vratislava', 'Vyskočilová', 'F', 'Paní');
 
 CREATE TABLE Appointment (
     App_ID NUMBER(10) GENERATED AS IDENTITY (START WITH 1111 INCREMENT BY 1) PRIMARY KEY,
@@ -88,6 +92,9 @@ VALUES('VUTFIT', 'VUT Fakulta informacnich technologii', 1113, '01-JAN-2002', NU
 INSERT INTO Bureau
 VALUES('VUTFP', 'VUT Fakulta podnikatelska', 1113, '15-SEP-1992', NULL, 12353,
        DEFAULT, 'Brno', 'Kolejni', 2906, 61200, 'Obec', 'VUTFIT');
+INSERT INTO Bureau
+VALUES('AutBrKrp', 'Autoskola Brno - Kralovo pole', 1111, '15-SEP-1994', NULL, 12354,
+       DEFAULT, 'Brno', 'Purkynova', 2906, 61200, 'Obec', NULL);
 
 
 CREATE TABLE Function (
@@ -99,12 +106,12 @@ CREATE TABLE Function (
     Superior_ID NUMBER(10) NULL,
     Establishment_date DATE DEFAULT SYSDATE,
     Cancellation_date DATE DEFAULT SYSDATE,
-    F_bureau VARCHAR(10),
+    Shortcut VARCHAR(10),
     CONSTRAINT Appointment_ID FOREIGN KEY (App_ID) REFERENCES Appointment(App_ID),
     CONSTRAINT Superior_f FOREIGN KEY (Superior_ID) REFERENCES Function(Function_ID),
     CONSTRAINT Function_ID UNIQUE (Function_ID),
-    CONSTRAINT Fc_Bureau FOREIGN KEY (F_bureau) REFERENCES Bureau(Shortcut),
-    CONSTRAINT func_in_bur UNIQUE (Function_code, F_bureau),
+    CONSTRAINT Fc_Bureau FOREIGN KEY (Shortcut) REFERENCES Bureau(Shortcut),
+    CONSTRAINT func_in_bur UNIQUE (Function_code, Shortcut),
     CHECK (Function_code > 0)
 );
 
@@ -140,6 +147,8 @@ INSERT INTO Person_function
 VALUES(DEFAULT, 1113, '21-JUN-2016', NULL, 2, NULL, 0106122467);
 INSERT INTO Person_function
 VALUES(DEFAULT, 1114, '13-MAY-2021', NULL, 9, NULL, 0157068923);
+INSERT INTO Person_function
+VALUES(DEFAULT, 1112, '22-MAY-2017', NULL, 9, NULL, 0157068934);
 
 CREATE TABLE Relationship (
     relationship_id NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -155,6 +164,8 @@ CREATE TABLE Relationship (
 
 INSERT INTO Relationship
 VALUES(DEFAULT, '0203071231', '9755165673', 'Family member', 'Sestra');
+INSERT INTO Relationship
+VALUES(DEFAULT, '0157068934', '9755165662', 'Family member', 'Sestrenice');
 
 CREATE TABLE Decree (
     Decree_ID INTEGER PRIMARY KEY,
@@ -162,19 +173,25 @@ CREATE TABLE Decree (
     Date_of_execution DATE DEFAULT SYSDATE,
     Decree VARCHAR(200) NOT NULL,
     Reasoning VARCHAR(1000) NOT NULL,
-    Person_ID INTEGER,
-    Bureau_shortcut VARCHAR(10),
-    CONSTRAINT D_person FOREIGN KEY (Person_ID) REFERENCES Person (Birth_number),
-    CONSTRAINT D_bureau FOREIGN KEY (Bureau_shortcut) REFERENCES Bureau (Shortcut),
+    Birth_number INTEGER,
+    Shortcut VARCHAR(10),
+    CONSTRAINT D_person FOREIGN KEY (Birth_number) REFERENCES Person (Birth_number),
+    CONSTRAINT D_bureau FOREIGN KEY (Shortcut) REFERENCES Bureau (Shortcut),
     CHECK (Decree_ID > 0)
 );
 
 INSERT INTO Decree
-VALUES(731476, DEFAULT, DEFAULT, 'Vydani ridicskeho prukazu',
+VALUES(731476, DEFAULT, '21-JUN-2016', 'Vydani ridicskeho prukazu',
        'Ridicsky prukaz vydan na zaklade plnohodnotneho splneni autoskoly.', '0203071231', 'AutBl');
 INSERT INTO Decree
-VALUES(731482, DEFAULT, DEFAULT, 'Vydani ridicskeho prukazu',
+VALUES(731482, DEFAULT, '13-FEB-2019', 'Vydani ridicskeho prukazu',
        'Ridicsky prukaz vydan na zaklade plnohodnotneho splneni autoskoly.', '0203071231', 'AutBl');
+INSERT INTO Decree
+VALUES(725341,'10-JAN-2020', '20-JAN-2020', 'Vypsani zakazky na nova vozidla.',
+       'Stavajici vozovy park nestacil', '0203071231', 'AutBl');
+INSERT INTO Decree
+VALUES(266435,'10-JAN-2020', '20-JAN-2020', 'Nakup kavovaru do vestibulu.',
+       'Do vestibulu autoskoly bude pro studenty nainstalovan kavovar spolecnost Cafe&Co.', '0203071231', 'AutBl');
 
 
 -- Po feedbacku z 1. casti jsme se rozhodli komplet predelat specializaci a misto uzemnich celku ji
@@ -187,11 +204,11 @@ VALUES(731482, DEFAULT, DEFAULT, 'Vydani ridicskeho prukazu',
 
 CREATE TABLE Studies(
     Studies_ID INTEGER PRIMARY KEY,
-    Name_ VARCHAR(50) NOT NULL,
-    S_bureau VARCHAR(10),
+    Studies_name VARCHAR(50) NOT NULL,
+    Shortcut VARCHAR(10),
     Type_ VARCHAR(25) NOT NULL CHECK (Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates','Bachelor''s', 'Driving schools')),
-    vehicle_type VARCHAR(20) NULL CHECK (vehicle_type IN ('A','B','BE','CE','D', 'DE', 'T', 'Others')),
-    CONSTRAINT B_bureau FOREIGN KEY (S_bureau) REFERENCES  Bureau (Shortcut),
+    vehicle_type VARCHAR(20) NULL CHECK (vehicle_type IN ('A','B','BE','C','CE','D', 'DE', 'T', 'Others')),
+    CONSTRAINT B_bureau FOREIGN KEY (Shortcut) REFERENCES  Bureau (Shortcut),
     CHECK (Studies_ID > 0),
     CHECK ((Type_ like 'Driving schools' and vehicle_type is not NULL) or 
     (Type_ not like 'Driving schools' and vehicle_type is NULL))
@@ -203,23 +220,71 @@ INSERT INTO Studies
 VALUES(102, 'Informacni technologie', 'VUTFIT', 'Postgraduate diplomas', NULL);
 INSERT INTO Studies
 VALUES(441, 'Ridicske opravneni B', 'AutBl', 'Driving schools', 'B');
+INSERT INTO Studies
+VALUES(442, 'Ridicske opravneni BE', 'AutBl', 'Driving schools', 'BE');
+INSERT INTO Studies
+VALUES(443, 'Ridicske opravneni A', 'AutBl', 'Driving schools', 'A');
+INSERT INTO Studies
+VALUES(444, 'Ridicske opravneni C', 'AutBl', 'Driving schools', 'C');
+INSERT INTO Studies
+VALUES(460, 'Ridicske opravneni B', 'AutBrKrp', 'Driving schools', 'B');
 
 CREATE TABLE Studies_student (
     Table_ID NUMBER(10) GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     Date_from DATE DEFAULT SYSDATE,
     Date_to DATE DEFAULT SYSDATE NULL,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')) NULL,
-    S_studies NUMBER(10),
-    S_person INTEGER,
-    CONSTRAINT Studies_1 FOREIGN KEY (S_studies) REFERENCES  Studies (Studies_ID),
-    CONSTRAINT Student_1 FOREIGN KEY (S_person) REFERENCES  Person (Birth_number)
+    Studies_ID NUMBER(10),
+    Birth_number INTEGER,
+    CONSTRAINT Studies_1 FOREIGN KEY (Studies_ID) REFERENCES  Studies (Studies_ID),
+    CONSTRAINT Student_1 FOREIGN KEY (Birth_number) REFERENCES  Person (Birth_number)
 );
 
 INSERT INTO Studies_student
 VALUES(DEFAULT, '21-SEP-2017', '14-JUL-2022', 'YES', 102, 0203071231);
 INSERT INTO Studies_student
-VALUES(DEFAULT, '11-AUG-2021', '07-OCT-2021', 'YES', 441, 0203071231);
+VALUES(DEFAULT, '11-AUG-2021', NULL, NULL, 441, 0203071231);
 INSERT INTO Studies_student
-VALUES(DEFAULT, '18-SEP-2018', '29-JUN-2022', 'YES', 12, 9755165673);
+VALUES(DEFAULT, '18-SEP-2018', '29-JUN-2021', 'YES', 12, 9755165673);
 INSERT INTO Studies_student
 VALUES(DEFAULT, '24-SEP-2016', '23-JUL-2022', 'YES', 102, 0106122467);
+INSERT INTO Studies_student
+VALUES(DEFAULT, '29-SEP-2015', '23-JUL-2019', 'NO', 12, 9755165662);
+INSERT INTO Studies_student
+VALUES(DEFAULT, '11-SEP-2016', '21-DEC-2016', 'YES', 442, 9755165673);
+INSERT INTO Studies_student
+VALUES(DEFAULT, '30-AUG-2017', '21-DEC-2018', 'YES', 443, 0157068923);
+INSERT INTO Studies_student
+VALUES(DEFAULT, '24-SEP-2022', '13-FEB-2023', 'NO', 444, 0157068934);
+INSERT INTO Studies_student
+VALUES(DEFAULT, '11-AUG-2013', '17-JUN-2015', 'YES', 460, 9755165662);
+
+
+SELECT Shortcut, Bureau_name, Studies_name
+FROM Bureau NATURAL JOIN Studies;
+
+SELECT Person_1, p1.Person_name, p1.Surname, Person_2, p2.Person_name, p2.Surname, rel_type, rel_description
+FROM Relationship JOIN Person p1 ON p1.Birth_number = Person_1 JOIN Person p2 on p2.Birth_number = Person_2;
+
+SELECT Shortcut, Person_name, Surname, Decree_ID, Decree
+FROM Decree NATURAL JOIN Person NATURAL JOIN Bureau
+WHERE Bureau_name = 'Autoskola Blansko' AND Date_of_execution > TO_DATE('01-JAN-2018')
+
+SELECT Sex, COUNT(*) Pocet_uredniku
+FROM Person NATURAL JOIN Person_function NATURAL JOIN Function
+GROUP BY Sex ORDER BY Pocet_uredniku DESC;
+
+SELECT Studies_name, COUNT(*) Pocet_uspesnych_studentu
+FROM Studies NATURAL JOIN Studies_student
+WHERE Successful_end = 'YES' AND Date_to < TO_DATE('01-JAN-2023') AND Date_to IS NOT NULL
+GROUP BY Studies_name;
+
+SELECT Shortcut, Bureau_name
+FROM Bureau
+WHERE EXISTS(SELECT Birth_number, Noble_title
+FROM Function NATURAL JOIN Person_function NATURAL JOIN Person
+WHERE Bureau.Shortcut = Function.Shortcut AND Noble_title IS NOT NULL);
+
+SELECT DISTINCT Person_name, Surname FROM Person WHERE Birth_number IN
+(SELECT Studies_student.Birth_number FROM Studies_student NATURAL JOIN Studies
+ where Studies.Type_ = 'Driving schools' AND Successful_end = 'YES');
