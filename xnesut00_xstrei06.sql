@@ -260,31 +260,37 @@ INSERT INTO Studies_student
 VALUES(DEFAULT, '11-AUG-2013', '17-JUN-2015', 'YES', 460, 9755165662);
 
 
+-- Tento dotaz vypisuje vsechny studijni obory a kurzy a take urad, ktery tyto kurzy/obory zarizuje.
 SELECT Shortcut, Bureau_name, Studies_name
 FROM Bureau NATURAL JOIN Studies;
 
+-- Tento dotaz vypise 2 ruzne osoby, ktere spolu jsou v nejakem urcitem vztahu. Dale pak specifikaci vztahu a jeho popis.
 SELECT Person_1, p1.Person_name, p1.Surname, Person_2, p2.Person_name, p2.Surname, rel_type, rel_description
 FROM Relationship JOIN Person p1 ON p1.Birth_number = Person_1 JOIN Person p2 on p2.Birth_number = Person_2;
 
+-- Tento dotaz vypisuje vsechna rozhodnuti vykonana na urcitem urade od urciteho data a kdo dane rozhodnuti vykonal (v tomto pripade se jedna Autoskolu Blansko a rozhodnuti od roku 2018).
 SELECT Shortcut, Person_name, Surname, Decree_ID, Decree
 FROM Decree NATURAL JOIN Person NATURAL JOIN Bureau
-WHERE Bureau_name = 'Autoskola Blansko' AND Date_of_execution > TO_DATE('01-JAN-2018')
+WHERE Bureau_name = 'Autoskola Blansko' AND Date_of_execution > TO_DATE('01-JAN-2018');
 
+-- Vypise celkovy pocet osob v systemu podle pohlavi.
 SELECT Sex, COUNT(*) Pocet_uredniku
 FROM Person NATURAL JOIN Person_function NATURAL JOIN Function
 GROUP BY Sex ORDER BY Pocet_uredniku DESC;
 
-SELECT Studies_name, COUNT(*) Pocet_uspesnych_studentu
-FROM Studies NATURAL JOIN Studies_student
+SELECT Studies_ID, STUDIES_NAME, BUREAU_name COUNT(STUDIES_ID) Pocet_uspesnych_studentu 
+FROM Studies NATURAL JOIN Studies_student NATURAL JOIN Bureau
 WHERE Successful_end = 'YES' AND Date_to < TO_DATE('01-JAN-2023') AND Date_to IS NOT NULL
-GROUP BY Studies_name;
+GROUP BY Studies_ID, STUDIES_name, Bureau_name;
 
+-- Tento dotaz vypise vsechny urady, na kterych pracuje alespon 1 clovek s slechtickym titulem
 SELECT Shortcut, Bureau_name
 FROM Bureau
 WHERE EXISTS(SELECT Birth_number, Noble_title
 FROM Function NATURAL JOIN Person_function NATURAL JOIN Person
 WHERE Bureau.Shortcut = Function.Shortcut AND Noble_title IS NOT NULL);
 
+-- Dotaz, ktery vypise vsechny osoby, ktere uspesne ukoncily nejakou formu kurzu motoroveho vozidla.
 SELECT DISTINCT Person_name, Surname FROM Person WHERE Birth_number IN
 (SELECT Studies_student.Birth_number FROM Studies_student NATURAL JOIN Studies
  where Studies.Type_ = 'Driving schools' AND Successful_end = 'YES');
