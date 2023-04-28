@@ -8,6 +8,7 @@ DROP TABLE Relationship CASCADE CONSTRAINTS;
 DROP TABLE Decree CASCADE CONSTRAINTS;
 DROP TABLE Studies CASCADE CONSTRAINTS;
 DROP TABLE Studies_student CASCADE CONSTRAINTS;
+DROP TABLE Update_bureau;
 
 CREATE TABLE Person (
     Birth_number INTEGER PRIMARY KEY,
@@ -132,7 +133,7 @@ CREATE TABLE Person_function (
     Date_to DATE DEFAULT SYSDATE,
     Employee_order NUMBER(5) NOT NULL,
     End_reason VARCHAR(150),
-    Birth_number INTEGER,
+    Birth_number INTEGER NOT NULL,
     CONSTRAINT VALID_INTERVAL CHECK (Date_to > Date_from),
     CONSTRAINT Person_ID FOREIGN KEY (Birth_number) REFERENCES Person (Birth_number),
     CONSTRAINT Func_ID FOREIGN KEY (Function_ID) REFERENCES Function (Function_ID)
@@ -173,7 +174,7 @@ CREATE TABLE Decree (
     Date_of_execution DATE DEFAULT SYSDATE,
     Decree VARCHAR(200) NOT NULL,
     Reasoning VARCHAR(1000) NOT NULL,
-    Birth_number INTEGER,
+    Birth_number INTEGER NOT NULL,
     Shortcut VARCHAR(10),
     CONSTRAINT D_person FOREIGN KEY (Birth_number) REFERENCES Person (Birth_number),
     CONSTRAINT D_bureau FOREIGN KEY (Shortcut) REFERENCES Bureau (Shortcut),
@@ -235,7 +236,7 @@ CREATE TABLE Studies_student (
     Date_to DATE DEFAULT SYSDATE NULL,
     Successful_end VARCHAR(3) CHECK (Successful_end IN ('YES', 'NO')) NULL,
     Studies_ID NUMBER(10),
-    Birth_number INTEGER,
+    Birth_number INTEGER NOT NULL,
     CONSTRAINT Studies_1 FOREIGN KEY (Studies_ID) REFERENCES  Studies (Studies_ID),
     CONSTRAINT Student_1 FOREIGN KEY (Birth_number) REFERENCES  Person (Birth_number)
 );
@@ -259,6 +260,12 @@ VALUES(DEFAULT, '24-SEP-2022', '13-FEB-2023', 'NO', 444, 0157068934);
 INSERT INTO Studies_student
 VALUES(DEFAULT, '11-AUG-2013', '17-JUN-2015', 'YES', 460, 9755165662);
 
+CREATE TABLE Update_bureau(
+    Update_superior VARCHAR2(10),
+    Update_old VARCHAR2(10)
+);
+INSERT INTO Update_bureau
+VALUES (NULL, NULL)
 
 -- Tento dotaz vypisuje vsechny studijni obory a kurzy a take urad, ktery tyto kurzy/obory zarizuje.
 SELECT Shortcut, Bureau_name, Studies_name
@@ -294,3 +301,50 @@ WHERE Bureau.Shortcut = Function.Shortcut AND Noble_title IS NOT NULL);
 SELECT DISTINCT Person_name, Surname FROM Person WHERE Birth_number IN
 (SELECT Studies_student.Birth_number FROM Studies_student NATURAL JOIN Studies
  where Studies.Type_ = 'Driving schools' AND Successful_end = 'YES');
+
+CREATE OR REPLACE TRIGGER relationship_delete
+    BEFORE DELETE ON Person
+    FOR EACH ROW
+BEGIN
+    DELETE FROM Relationship
+        WHERE Person_1 = :OLD.Birth_number OR
+            Person_2 = :OLD.Birth_number;
+    DELETE FROM Studies_student
+        WHERE Birth_number = :OLD.Birth_number;
+    DELETE FROM Person_function
+        WHERE Birth_number = :OLD.Birth_number;
+    DELETE FROM Decree
+        WHERE Birth_number = :OLD.Birth_number;
+END;
+
+CREATE OR REPLACE TRIGGER Sup_bureau_update
+    AFTER UPDATE ON Bureau
+    FOR EACH ROW
+BEGIN
+    IF :OLD.Closed IS NOT NULL THEN
+    UPDATE Update_bureau
+        SET Update_superior = :OLD.Superior_shortcut,
+            Update_old = :OLD.Shortcut
+        WHERE 1 = 1;
+    END IF;
+END;
+
+CREATE OR REPLACE TRIGGER Sup_bureau_update2
+    AFTER UPDATE ON Update_bureau
+    FOR EACH ROW
+BEGIN
+    UPDATE Bureau
+    SET Superior_shortcut = :OLD.Update_superior
+    WHERE Superior_shortcut = :OLD.Update_old;
+END;
+
+
+Delete FROM Person where Birth_number = '0203071231';
+
+select * from relationship WHERE PERSON_1 ='0203071231' or PERSON_2 ='0203071231';
+
+UPDATE Bureau SET Closed = '23-JUL-2022' WHERE Shortcut = 'VUTFIT';
+
+SELECT * FROM Bureau WHERE Superior_shortcut IS NULL;
+select * from user_errors where type = 'TRIGGER'
+
