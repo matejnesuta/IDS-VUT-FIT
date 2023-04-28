@@ -277,8 +277,8 @@ WHERE Bureau_name = 'Autoskola Blansko' AND Date_of_execution > TO_DATE('01-JAN-
 SELECT Sex, COUNT(*) Pocet_uredniku
 FROM Person NATURAL JOIN Person_function NATURAL JOIN Function
 GROUP BY Sex ORDER BY Pocet_uredniku DESC;
-
-SELECT Studies_ID, STUDIES_NAME, BUREAU_name COUNT(STUDIES_ID) Pocet_uspesnych_studentu 
+-- Ukaze podle oboru pocet studentu, kteri minule roky uspesne ukoncili studium. 
+SELECT Studies_ID, STUDIES_NAME, BUREAU_name, COUNT(STUDIES_ID) Pocet_uspesnych_studentu 
 FROM Studies NATURAL JOIN Studies_student NATURAL JOIN Bureau
 WHERE Successful_end = 'YES' AND Date_to < TO_DATE('01-JAN-2023') AND Date_to IS NOT NULL
 GROUP BY Studies_ID, STUDIES_name, Bureau_name;
