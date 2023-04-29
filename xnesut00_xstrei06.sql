@@ -8,7 +8,7 @@ DROP TABLE Relationship CASCADE CONSTRAINTS;
 DROP TABLE Decree CASCADE CONSTRAINTS;
 DROP TABLE Studies CASCADE CONSTRAINTS;
 DROP TABLE Studies_student CASCADE CONSTRAINTS;
-DROP TABLE Update_bureau;
+DROP MATERIALIZED VIEW Person_list;
 
 CREATE TABLE Person (
     Birth_number INTEGER PRIMARY KEY,
@@ -117,13 +117,13 @@ CREATE TABLE Function (
 );
 
 INSERT INTO Function
-VALUES(DEFAULT, 'Instruktor', 1234, 1111, DEFAULT, NULL, DEFAULT, DEFAULT, 'AutBl');
+VALUES(DEFAULT, 'Instruktor', 1234, 1111, '0013-11', NULL, DEFAULT, DEFAULT, 'AutBl');
 INSERT INTO Function
-VALUES(DEFAULT, 'Sekretarka', 1234, 1112, DEFAULT, 1111, DEFAULT, DEFAULT, 'MUBo');
+VALUES(DEFAULT, 'Sekretarka', 1234, 1112, '0001-02', 1111, DEFAULT, DEFAULT, 'MUBo');
 INSERT INTO Function
-VALUES(DEFAULT, 'Administrator systemu', 1357, 1112, DEFAULT, NULL, DEFAULT, DEFAULT, 'KUPh');
+VALUES(DEFAULT, 'Administrator systemu', 1357, 1112, '0007-07', NULL, DEFAULT, DEFAULT, 'KUPh');
 INSERT INTO Function
-VALUES(DEFAULT, 'Profesor', 1313, 1111, DEFAULT, NULL, DEFAULT, DEFAULT, 'VUTFIT');
+VALUES(DEFAULT, 'Profesor', 1313, 1111, '0004-11', NULL, DEFAULT, NULL, 'VUTFIT');
 
 
 CREATE TABLE Person_function (
@@ -260,13 +260,6 @@ VALUES(DEFAULT, '24-SEP-2022', '13-FEB-2023', 'NO', 444, 0157068934);
 INSERT INTO Studies_student
 VALUES(DEFAULT, '11-AUG-2013', '17-JUN-2015', 'YES', 460, 9755165662);
 
-CREATE TABLE Update_bureau(
-    Update_superior VARCHAR2(10),
-    Update_old VARCHAR2(10)
-);
-INSERT INTO Update_bureau
-VALUES (NULL, NULL)
-
 -- Tento dotaz vypisuje vsechny studijni obory a kurzy a take urad, ktery tyto kurzy/obory zarizuje.
 SELECT Shortcut, Bureau_name, Studies_name
 FROM Bureau NATURAL JOIN Studies;
@@ -317,25 +310,27 @@ BEGIN
         WHERE Birth_number = :OLD.Birth_number;
 END;
 
-CREATE OR REPLACE TRIGGER Sup_bureau_update
+CREATE OR REPLACE TRIGGER Function_end
     AFTER UPDATE ON Bureau
     FOR EACH ROW
 BEGIN
-    IF :OLD.Closed IS NOT NULL THEN
-    UPDATE Update_bureau
-        SET Update_superior = :OLD.Superior_shortcut,
-            Update_old = :OLD.Shortcut
-        WHERE 1 = 1;
+    IF :NEW.Closed IS NOT NULL THEN
+        UPDATE Function
+        SET Cancellation_date = :NEW.Closed
+        WHERE Shortcut = :OLD.Shortcut;
     END IF;
 END;
 
-CREATE OR REPLACE TRIGGER Sup_bureau_update2
-    AFTER UPDATE ON Update_bureau
+CREATE OR REPLACE TRIGGER P_function_end
+    AFTER UPDATE ON Function
     FOR EACH ROW
 BEGIN
-    UPDATE Bureau
-    SET Superior_shortcut = :OLD.Update_superior
-    WHERE Superior_shortcut = :OLD.Update_old;
+    IF :NEW.Cancellation_date IS NOT NULL THEN
+        UPDATE Person_function
+        SET Date_to = :NEW.Cancellation_date,
+            End_reason = 'Uzavreni uradu'
+        WHERE Function_ID = :OLD.Function_ID AND Date_to IS NULL;
+    END IF;
 END;
 
 
@@ -345,6 +340,60 @@ select * from relationship WHERE PERSON_1 ='0203071231' or PERSON_2 ='0203071231
 
 UPDATE Bureau SET Closed = '23-JUL-2022' WHERE Shortcut = 'VUTFIT';
 
-SELECT * FROM Bureau WHERE Superior_shortcut IS NULL;
-select * from user_errors where type = 'TRIGGER'
+SELECT * FROM Function NATURAL JOIN Person_function WHERE Shortcut = 'VUTFIT';
 
+WITH Function_time AS (SELECT
+                       AVG(EXTRACT(MONTH FROM Function_length) + 12*EXTRACT(YEAR FROM Function_length)) AS AVERAGE
+        FROM Function)
+    SELECT Function_name, Shortcut,
+        CASE
+            WHEN EXTRACT(MONTH FROM function_length) + 12*EXTRACT(YEAR FROM function_length) > AVERAGE THEN
+                'Above average'
+            ELSE 'Below average'
+        END AS Average_length
+    FROM Function_time, Function
+
+
+CREATE MATERIALIZED VIEW LOG ON Person WITH PRIMARY KEY, ROWID (Person_name, Surname) INCLUDING NEW VALUES;
+CREATE MATERIALIZED VIEW Person_list
+BUILD IMMEDIATE REFRESH FAST ON COMMIT AS
+SELECT Z.Birth_number, Z.Person_name, Z.Surname
+FROM Person Z;
+SELECT * FROM Person_list;
+UPDATE Person SET Noble_title = 'Rytir' WHERE Birth_number = 0203071231;
+COMMIT;
+SELECT * FROM Person_list;
+
+EXPLAIN PLAN FOR
+SELECT Studies_ID, STUDIES_NAME, BUREAU_name, COUNT(STUDIES_ID) Pocet_uspesnych_studentu
+FROM Studies NATURAL JOIN Studies_student NATURAL JOIN Bureau
+WHERE Successful_end = 'YES' AND Date_to < TO_DATE('01-JAN-2023') AND Date_to IS NOT NULL
+GROUP BY Studies_ID, STUDIES_name, Bureau_name;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY());
+
+CREATE INDEX Optimize ON Studies (Shortcut, Studies_name);
+CREATE INDEX Optimize2 ON Studies_student (Birth_number, Studies_ID);
+CREATE INDEX Optimize3 ON Bureau (Bureau_name);
+
+EXPLAIN PLAN FOR
+SELECT Studies_ID, STUDIES_NAME, BUREAU_name, COUNT(STUDIES_ID) Pocet_uspesnych_studentu
+FROM Studies NATURAL JOIN Studies_student NATURAL JOIN Bureau
+WHERE Successful_end = 'YES' AND Date_to < TO_DATE('01-JAN-2023') AND Date_to IS NOT NULL
+GROUP BY Studies_ID, STUDIES_name, Bureau_name;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY());
+DROP INDEX Optimize;
+DROP INDEX Optimize2;
+DROP INDEX Optimize3;
+
+GRANT ALL ON Person TO XNESUT00;
+GRANT ALL ON Person_function TO XNESUT00;
+GRANT ALL ON Function TO XNESUT00;
+GRANT ALL ON Appointment TO XNESUT00;
+GRANT ALL ON Bureau TO XNESUT00;
+GRANT ALL ON Bureau_type TO XNESUT00;
+GRANT ALL ON Relationship TO XNESUT00;
+GRANT ALL ON Decree TO XNESUT00;
+GRANT ALL ON Studies TO XNESUT00;
+--GRANT EXECUTE ON procedure1 TO XNESUT00;
+--GRANT EXECUTE ON procedure2 TO XNESUT00;
+GRANT ALL ON Person_list TO XNESUT00;
