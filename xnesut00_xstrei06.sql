@@ -192,7 +192,7 @@ VALUES(725341,'10-JAN-2020', '20-JAN-2020', 'Vypsani zakazky na nova vozidla.',
        'Stavajici vozovy park nestacil', '0203071231', 'AutBl');
 INSERT INTO Decree
 VALUES(266435,'10-JAN-2020', '20-JAN-2020', 'Nakup kavovaru do vestibulu.',
-       'Do vestibulu autoskoly bude pro studenty nainstalovan kavovar spolecnost Cafe&Co.', '0203071231', 'AutBl');
+       'Do vestibulu autoskoly bude pro studenty nainstalovan kavovar spolecnost CafeCo.', '0203071231', 'AutBl');
 
 
 -- Po feedbacku z 1. casti jsme se rozhodli komplet predelat specializaci a misto uzemnich celku ji
@@ -309,6 +309,7 @@ BEGIN
     DELETE FROM Decree
         WHERE Birth_number = :OLD.Birth_number;
 END;
+/
 
 CREATE OR REPLACE TRIGGER Function_end
     AFTER UPDATE ON Bureau
@@ -320,6 +321,7 @@ BEGIN
         WHERE Shortcut = :OLD.Shortcut;
     END IF;
 END;
+/
 
 CREATE OR REPLACE TRIGGER P_function_end
     AFTER UPDATE ON Function
@@ -332,6 +334,7 @@ BEGIN
         WHERE Function_ID = :OLD.Function_ID AND Date_to IS NULL;
     END IF;
 END;
+/
 
 
 Delete FROM Person where Birth_number = '0203071231';
@@ -351,17 +354,16 @@ WITH Function_time AS (SELECT
                 'Above average'
             ELSE 'Below average'
         END AS Average_length
-    FROM Function_time, Function
+    FROM Function_time, Function;
 
+CREATE MATERIALIZED VIEW Person_list AS (
+    SELECT Z.Birth_number, Z.Person_name, Z.Surname, Z.Noble_title
+    FROM Person Z
+);
 
-CREATE MATERIALIZED VIEW LOG ON Person WITH PRIMARY KEY, ROWID (Person_name, Surname) INCLUDING NEW VALUES;
-CREATE MATERIALIZED VIEW Person_list
-BUILD IMMEDIATE REFRESH FAST ON COMMIT AS
-SELECT Z.Birth_number, Z.Person_name, Z.Surname
-FROM Person Z;
 SELECT * FROM Person_list;
-UPDATE Person SET Noble_title = 'Rytir' WHERE Birth_number = 0203071231;
-COMMIT;
+UPDATE Person SET Noble_title = 'Rytir' WHERE Birth_number = 0157068923;
+EXECUTE DBMS_MVIEW.REFRESH('Person_list');
 SELECT * FROM Person_list;
 
 EXPLAIN PLAN FOR
@@ -384,6 +386,137 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY());
 DROP INDEX Optimize;
 DROP INDEX Optimize2;
 DROP INDEX Optimize3;
+
+
+SET SERVEROUTPUT ON;
+
+CREATE OR REPLACE PROCEDURE Person_invalid_birth_number AS
+    CURSOR persons IS SELECT * FROM Person;
+    totalInvalid NUMBER := 0;
+    bn varchar(10);
+    year VARCHAR(4);
+    month VARCHAR(2);
+    day VARCHAR(2);
+    numberEnd VARCHAR(4);
+    validNumber BOOLEAN;
+    boolRC BOOLEAN;
+    per persons%ROWTYPE;
+    BEGIN
+        dbms_output.put_line('Persons with invalid birth number:');
+        OPEN persons;
+        LOOP
+            FETCH persons INTO per;
+            EXIT WHEN persons%NOTFOUND;
+            validNumber := TRUE; 
+            bn := TO_CHAR(per.Birth_number) ;
+            year := SUBSTR(bn, 1, 2);
+            month := SUBSTR(bn, 3, 2);
+            day := SUBSTR(bn, 5, 2);
+
+            IF (LENGTH(bn) = 9) THEN
+                numberEnd := SUBSTR(bn, 7, 3);
+                IF (numberEnd = 000) THEN
+                    validNumber := FALSE; 
+                END IF;
+            ELSIF (LENGTH(bn) = 10) THEN
+                numberEnd := SUBSTR(bn, 7, 4);
+                IF (MOD(bn,11) != 0) THEN
+                    validNumber := FALSE; 
+                END IF;
+
+                IF (year > 53) THEN
+                    year := year + 1900;
+                ELSE
+                    year := year+ 2000;
+                END IF;
+            ELSE
+                validNumber := FALSE; 
+            END IF;
+
+            IF (month > 50) THEN
+                month := month - 50;
+            END IF;
+
+            IF (month > 20) THEN
+                boolRC := TRUE;
+                month := month - 20;
+            END IF;
+
+            IF (month <= 0 AND month > 12) THEN
+                validNumber := FALSE; 
+            END IF;
+
+            IF (month <= 0 AND month > 31) THEN
+                validNumber := FALSE; 
+            END IF;
+
+            IF ((month = 4 OR month = 6 OR month = 9 OR month = 11) AND day > 30) THEN
+                validNumber := FALSE; 
+            ELSIF (month = 2) THEN
+                IF(day > 29) THEN
+                    validNumber := FALSE; 
+                ELSIF (day = 29) THEN
+                    IF (MOD(year, 4) != 0) THEN
+                        IF (MOD(year, 400) != 0) THEN
+                            validNumber := FALSE; 
+                        END IF;
+                    ELSIF (((MOD(year, 4) = 0) OR (MOD(year, 400) = 0)) AND (MOD(year,100) = 0)) THEN
+                        validNumber := FALSE; 
+                    END IF;
+                END IF;
+            END IF;
+            IF validNumber = FALSE THEN
+                dbms_output.put_line('Birth number: ' || per.Birth_number);
+                dbms_output.put_line('Person: ' ||  per.Person_name|| ' ' || per.Surname);
+                totalInvalid  := totalInvalid + 1;
+            END IF;
+ 
+        END LOOP;
+        dbms_output.put_line('Total: ' || totalInvalid);
+        CLOSE persons;
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20003, 'No person found in the database');
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Internal error');
+END;
+/
+
+EXECUTE Person_invalid_birth_number();
+
+CREATE OR REPLACE PROCEDURE Person_function_studies AS
+    Pocet_osob NUMBER;
+    TYPE birth_number_t IS TABLE OF Person_function.Birth_number%TYPE;
+    Ve_funkci birth_number_t := birth_number_t();
+    Pocet_ve_funkci NUMBER;
+    Vysokoskolske_vzdelani NUMBER := 0;
+BEGIN
+    SELECT COUNT(*) INTO Pocet_osob FROM Person;
+    SELECT DISTINCT Birth_number BULK COLLECT INTO Ve_funkci FROM Person_function;
+    Pocet_ve_funkci := Ve_funkci.COUNT;
+
+    FOR i IN 1..Ve_funkci.COUNT LOOP
+        DECLARE
+            Vv NUMBER;
+        BEGIN
+            SELECT COUNT(*) INTO Vv FROM Studies_student ss JOIN Studies s
+            ON ss.Studies_ID = s.Studies_ID
+            WHERE ss.Birth_number = Ve_funkci(i)
+            AND s.Type_ IN ('Postgraduate certificates', 'Postgraduate diplomas', 'Master''s degrees', 'Doctorates','Bachelor''s')
+            AND ss.Successful_end = 'YES' AND ROWNUM = 1;
+            Vysokoskolske_vzdelani := Vysokoskolske_vzdelani + Vv;
+        END;
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE(
+        'V systemu je zaznamenano ' || Pocet_osob || ' osob.');
+    DBMS_OUTPUT.PUT_LINE(
+        'Z toho ' || Pocet_ve_funkci || ' vykonava funkci na nekterem z uradu a ' || Vysokoskolske_vzdelani ||
+        ' z nich ma vysokoskolske vzdelani. ');
+END;
+/
+
+EXECUTE Person_function_studies();
 
 GRANT ALL ON Person TO XNESUT00;
 GRANT ALL ON Person_function TO XNESUT00;
